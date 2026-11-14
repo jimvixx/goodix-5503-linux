@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+build_only=false
+if [[ $# -eq 1 && $1 == --build-only ]]; then
+  build_only=true
+elif [[ $# -ne 0 ]]; then
+  printf 'Usage: %s [--build-only]\n' "$0" >&2
+  exit 2
+fi
+
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -n ${LIBFPRINT_SOURCE:-} ]]; then
   source_dir=$LIBFPRINT_SOURCE
@@ -78,14 +86,48 @@ new = "    'goodix5503' : files(\n        'drivers/goodix5503.c', 'drivers/goodi
 if text.count(old) != 1:
     raise SystemExit("unexpected libfprint driver source map")
 lib.write_text(text.replace(old, new))
+
+tests = source / "tests/meson.build"
+text = tests.read_text()
+old = """    foreach driver_test: drivers_tests
+        test(driver_test,
+            sh,
+            args: ['-c', 'exit 77']
+        )
+    endforeach
+"""
+new = """    foreach driver_test, driver_test_args: drivers_tests
+        test(driver_test,
+            sh,
+            args: ['-c', 'exit 77']
+        )
+    endforeach
+"""
+if text.count(old) != 1:
+    raise SystemExit("unexpected tests dictionary foreach")
+tests.write_text(text.replace(old, new))
 PY
 
-meson setup "$work_dir/build" "$work_dir/source" \
-  -Ddrivers=goodix5503 \
-  -Dintrospection=true \
-  -Ddoc=false \
-  -Dudev_rules=disabled \
+meson_args=(
+  -Ddrivers=goodix5503
+  -Ddoc=false
+  -Dudev_rules=disabled
   -Dudev_hwdb=disabled
+)
+if "$build_only"; then
+  meson_args+=(-Dintrospection=false)
+else
+  meson_args+=(-Dintrospection=true)
+fi
+
+meson setup "$work_dir/build" "$work_dir/source" "${meson_args[@]}"
+if "$build_only"; then
+  ninja -C "$work_dir/build" libfprint/libfprint-2.so.2.0.0
+  printf 'Compiled production driver in %s/build; no driver binaries or tests were run\n' \
+    "$work_dir"
+  exit 0
+fi
+
 ninja -C "$work_dir/build" \
   libfprint/libfprint-2.so.2.0.0 \
   examples/enroll examples/verify examples/img-capture \
