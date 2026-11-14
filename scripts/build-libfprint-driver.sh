@@ -86,6 +86,26 @@ new = "    'goodix5503' : files(\n        'drivers/goodix5503.c', 'drivers/goodi
 if text.count(old) != 1:
     raise SystemExit("unexpected libfprint driver source map")
 lib.write_text(text.replace(old, new))
+
+tests = source / "tests/meson.build"
+text = tests.read_text()
+old = """    foreach driver_test: drivers_tests
+        test(driver_test,
+            sh,
+            args: ['-c', 'exit 77']
+        )
+    endforeach
+"""
+new = """    foreach driver_test, driver_test_args: drivers_tests
+        test(driver_test,
+            sh,
+            args: ['-c', 'exit 77']
+        )
+    endforeach
+"""
+if text.count(old) != 1:
+    raise SystemExit("unexpected tests dictionary foreach")
+tests.write_text(text.replace(old, new))
 PY
 
 meson_args=(

@@ -158,6 +158,15 @@ and `-Ddrivers=goodix5503` Meson configuration, with introspection disabled.
 Its overlay work directory remains the script's fixed
 `.tools/libfprint-goodix5503` path inside the disposable CI checkout; it is
 not controlled by an environment-provided destination.
+
+The pinned `tests/meson.build` has one fallback loop that is incompatible with
+Meson 1.3 when introspection is disabled: it iterates the `drivers_tests`
+dictionary with one variable.  The preparation helper replaces that exact
+six-line block once with a two-variable loop in the disposable copied tree.
+It aborts if the expected block is absent or duplicated.  This is a
+configuration compatibility repair only; it does not alter the pinned checkout,
+the upstream revision or a Goodix production source file.
+
 It runs only:
 
 ```sh
